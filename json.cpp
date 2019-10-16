@@ -306,7 +306,6 @@ json_element* json::parse_null(const char* &src_ptr) {
 		}
 	}
 	++ ptr;
-	skip_whitespace(ptr);
 	src_ptr = ptr;
 	return new json_element();
 }
@@ -322,8 +321,8 @@ json_element* json::parse_boolean(const char* &src_ptr) {
 			return nullptr;
 		}
 	}
-	skip_whitespace(ptr);
-	json_element* res = new json_element(ptr[-1] == 'u');
+	++ ptr;
+	json_element* res = new json_element(ptr[-2] == 'u');
 	src_ptr = ptr;
 	return res;
 }
