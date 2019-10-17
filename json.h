@@ -85,16 +85,19 @@ public:
 class json_parse_result {
 private:
 
+	char const* src;
 	int err_index;
 	json_element* res;
 
 public:
 
-	json_parse_result(int err_index, json_element* res);
+	json_parse_result(char const* src, int err_index, json_element* res);
 
 	int error_index();
 
 	json_element* result();
+
+	void count_row_col(int &row, int &col);
 
 	~json_parse_result();
 

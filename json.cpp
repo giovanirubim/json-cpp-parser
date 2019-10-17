@@ -201,7 +201,8 @@ json_element::~json_element() {
 	}
 }
 
-json_parse_result::json_parse_result(int err_index, json_element* res) {
+json_parse_result::json_parse_result(const char* src, int err_index, json_element* res) {
+	this->src = src;
 	this->err_index = err_index;
 	this->res = res;
 }
@@ -212,6 +213,23 @@ int json_parse_result::error_index() {
 
 json_element* json_parse_result::result() {
 	return res;
+}
+
+void json_parse_result::count_row_col(int &row, int &col) {
+	int r = 1;
+	int c = 1;
+	int e = err_index;
+	const char* ptr = src;
+	for (int i=0; i<e; ++i) {
+		if (ptr[i] == '\n') {
+			c = 1;
+			++ r;
+		} else {
+			++ c;
+		}
+	}
+	row = r;
+	col = c;
 }
 
 json_parse_result::~json_parse_result() {
@@ -510,7 +528,7 @@ json_parse_result json::parse(const char* ptr) {
 		delete res;
 		res = nullptr;
 	}
-	return json_parse_result(ptr - src, res);
+	return json_parse_result(src, ptr - src, res);
 }
 
 #endif
