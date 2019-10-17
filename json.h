@@ -108,7 +108,9 @@ private:
 
 	static char is_whitespace[256];
 
-	static void skip_whitespace(const char* &ptr);
+	static bool skip_whitespace(const char* &ptr);
+
+	static bool skip_comment(const char* &ptr);
 
 	static bool parse_string(const char* &ptr, std::string &string);
 

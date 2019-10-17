@@ -244,10 +244,45 @@ char json::is_whitespace[256] = {
 	1
 };
 
-void json::skip_whitespace(const char* &src_ptr) {
+bool json::skip_whitespace(const char* &src_ptr) {
 	const char* ptr = src_ptr;
-	while (is_whitespace[*ptr]) ++ ptr;
+	bool res = true;
+	for (;;) {
+		while (is_whitespace[*ptr]) ++ ptr;
+		if (*ptr != '/') break;
+		if (!skip_comment(ptr)) {
+			res = false;
+			break;
+		}
+	}
 	src_ptr = ptr;
+	return res;
+}
+
+bool json::skip_comment(const char* &src_ptr) {
+	const char* ptr = src_ptr;
+	char chr = *++ptr;
+	bool res = true;
+	if (chr == '*') {
+		for (++ptr;;) {
+			while ((chr=*ptr) && chr != '*') ++ ptr;
+			if (!chr) {
+				src_ptr = ptr;
+				return false;
+			}
+			if (*++ptr == '/') {
+				++ ptr;
+				break;
+			}
+		}
+	} else if (chr == '/') {
+		while ((chr=*++ptr) && chr != '\n');
+		if (chr) ++ ptr;
+	} else {
+		res = false;
+	}
+	src_ptr = ptr;
+	return res;
 }
 
 bool json::parse_string(const char* &src_ptr, std::string &string) {
@@ -435,17 +470,22 @@ json_element* json::parse_value(const char* &src_ptr) {
 		case '[': res = parse_array(ptr); break;
 		case '{': res = parse_object(ptr); break;
 	}
-	if (res) {
-		skip_whitespace(ptr);
+	if (res && !skip_whitespace(ptr)) {
+		delete res;
+		res = nullptr;
 	}
 	src_ptr = ptr;
 	return res;
 }
 
 json_element* json::parse_array(const char* &src_ptr) {
-	std::vector <json_element*>* array = new std::vector <json_element*>();
 	const char* ptr = src_ptr + 1;
-	skip_whitespace(ptr);
+	if (!skip_whitespace(ptr)) {
+		src_ptr = ptr;
+		return nullptr;
+	}
+	std::vector <json_element*>* array;
+	array = new std::vector <json_element*>();
 	if (*ptr == ']') {
 		++ ptr;
 	} else {
@@ -455,7 +495,9 @@ json_element* json::parse_array(const char* &src_ptr) {
 			array->push_back(item);
 			if (*ptr == ',') {
 				++ ptr;
-				skip_whitespace(ptr);
+				if (!skip_whitespace(ptr)) {
+					goto failed;
+				}
 				continue;
 			}
 			if (*ptr == ']') {
@@ -477,9 +519,13 @@ json_element* json::parse_array(const char* &src_ptr) {
 }
 
 json_element* json::parse_object(const char* &src_ptr) {
-	std::unordered_map <std::string, json_element*>* object = new std::unordered_map <std::string, json_element*>();
 	const char* ptr = src_ptr + 1;
-	skip_whitespace(ptr);
+	if (!skip_whitespace(ptr)) {
+		src_ptr = ptr;
+		return nullptr;
+	}
+	std::unordered_map <std::string, json_element*>* object;
+	object = new std::unordered_map <std::string, json_element*>();
 	if (*ptr == '}') {
 		++ptr;
 	} else {
@@ -489,17 +535,17 @@ json_element* json::parse_object(const char* &src_ptr) {
 			if (!parse_string(ptr, name)) {
 				goto failed;
 			}
-			skip_whitespace(ptr);
+			if (!skip_whitespace(ptr)) goto failed;
 			if (*ptr != ':') goto failed;
 			++ ptr;
-			skip_whitespace(ptr);
+			if (!skip_whitespace(ptr)) goto failed;
 			json_element* item = parse_value(ptr);
 			if (!item) goto failed;
 			(*object)[name] = item;
 			char chr = *ptr;
 			if (chr == ',') {
 				++ ptr;
-				skip_whitespace(ptr);
+				if (!skip_whitespace(ptr)) goto failed;
 				continue;
 			}
 			if (chr == '}') {
@@ -522,9 +568,11 @@ json_element* json::parse_object(const char* &src_ptr) {
 
 json_parse_result json::parse(const char* ptr) {
 	const char* src = ptr;
-	skip_whitespace(ptr);
-	json_element* res = parse_value(ptr);
-	if (*ptr) {
+	json_element* res = nullptr;
+	if (skip_whitespace(ptr)) {
+		res = parse_value(ptr);
+	}
+	if (res && *ptr) {
 		delete res;
 		res = nullptr;
 	}
