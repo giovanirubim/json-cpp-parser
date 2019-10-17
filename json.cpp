@@ -246,43 +246,32 @@ char json::is_whitespace[256] = {
 
 bool json::skip_whitespace(const char* &src_ptr) {
 	const char* ptr = src_ptr;
-	bool res = true;
 	for (;;) {
 		while (is_whitespace[*ptr]) ++ ptr;
 		if (*ptr != '/') break;
-		if (!skip_comment(ptr)) {
-			res = false;
-			break;
+		char chr = *++ptr;
+		if (chr == '*') {
+			for (++ptr;;) {
+				while ((chr=*ptr) && chr != '*') ++ ptr;
+				if (!chr) {
+					src_ptr = ptr;
+					return false;
+				}
+				if (*++ptr == '/') {
+					++ ptr;
+					break;
+				}
+			}
+		} else if (chr == '/') {
+			while ((chr=*++ptr) && chr != '\n');
+			if (chr) ++ ptr;
+		} else {
+			src_ptr = ptr;
+			return false;
 		}
 	}
 	src_ptr = ptr;
-	return res;
-}
-
-bool json::skip_comment(const char* &src_ptr) {
-	const char* ptr = src_ptr;
-	char chr = *++ptr;
-	bool res = true;
-	if (chr == '*') {
-		for (++ptr;;) {
-			while ((chr=*ptr) && chr != '*') ++ ptr;
-			if (!chr) {
-				src_ptr = ptr;
-				return false;
-			}
-			if (*++ptr == '/') {
-				++ ptr;
-				break;
-			}
-		}
-	} else if (chr == '/') {
-		while ((chr=*++ptr) && chr != '\n');
-		if (chr) ++ ptr;
-	} else {
-		res = false;
-	}
-	src_ptr = ptr;
-	return res;
+	return true;
 }
 
 bool json::parse_string(const char* &src_ptr, std::string &string) {

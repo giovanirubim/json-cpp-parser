@@ -110,8 +110,6 @@ private:
 
 	static bool skip_whitespace(const char* &ptr);
 
-	static bool skip_comment(const char* &ptr);
-
 	static bool parse_string(const char* &ptr, std::string &string);
 
 	static json_element* parse_null(const char* &ptr);
