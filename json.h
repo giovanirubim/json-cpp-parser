@@ -130,6 +130,8 @@ public:
 
 	static json_parse_result parse(const char* ptr);
 
+	static std::string stringify(std::string str);
+
 };
 
 #endif

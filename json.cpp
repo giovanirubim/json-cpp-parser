@@ -72,6 +72,7 @@ std::string json_element::type() {
 		case JSON_ARRAY:   return "array";
 		case JSON_OBJECT:  return "object";
 	}
+	return "undefined";
 }
 
 json_element* json_element::attr(std::string name) {
@@ -88,7 +89,7 @@ json_element* json_element::attr(std::string name) {
 json_element* json_element::get(int index) {
 	if (type_code != JSON_ARRAY) return nullptr;
 	std::vector <json_element*> &array = *content.array;
-	if (index < 0 || index >= array.size()) return nullptr;
+	if (index < 0 || index >= (int)array.size()) return nullptr;
 	return array[index];
 }
 
@@ -177,6 +178,7 @@ std::string json_element::toString() {
 			return res + "}";
 		};
 	}
+	return "undefined";
 }
 
 json_element::~json_element() {
@@ -247,7 +249,7 @@ char json::is_whitespace[256] = {
 bool json::skip_whitespace(const char* &src_ptr) {
 	const char* ptr = src_ptr;
 	for (;;) {
-		while (is_whitespace[*ptr]) ++ ptr;
+		while (is_whitespace[(unsigned char)*ptr]) ++ ptr;
 		if (*ptr != '/') break;
 		char chr = *++ptr;
 		if (chr == '*') {
@@ -319,11 +321,11 @@ bool json::parse_string(const char* &src_ptr, std::string &string) {
 							string += (char) v;
 						} else if (v <= 0b11111111111) {
 							string += 0b11000000 | (v >> 6);
-							string += 0b10000000 | v & 0b00111111;
+							string += 0b10000000 | (v & 0b00111111);
 						} else {
 							string += 0b11100000 | (v >> 12);
-							string += 0b10000000 | (v >> 6) & 0b00111111;
-							string += 0b10000000 | (   v  ) & 0b00111111;
+							string += 0b10000000 | ((v >> 6) & 0b00111111);
+							string += 0b10000000 | ((   v  ) & 0b00111111);
 						}
 					} break;
 					default: {
@@ -566,6 +568,43 @@ json_parse_result json::parse(const char* ptr) {
 		res = nullptr;
 	}
 	return json_parse_result(src, ptr - src, res);
+}
+
+std::string json::stringify(std::string str) {
+	auto i = str.begin();
+	auto e = str.end();
+	std::string res = "\"";
+	for (; i != e; ++i) {
+		unsigned char chr = *i;
+		if (chr > 31) {
+			if (chr < 128) {
+				if (chr == '"') {
+					res += "\\\"";
+				} else {
+					res += (char) chr;
+				}
+				continue;
+			} else {
+				goto to_hex;
+			}
+		}
+		switch (chr) {
+			case 10: str += "\\n"; break;
+			case  9: str += "\\t"; break;
+			case 13: str += "\\r"; break;
+			case  8: str += "\\b"; break;
+			case 12: str += "\\f"; break;
+			default: goto to_hex;
+		}
+		continue;
+		to_hex:
+		res += "\\u00";
+		char h0 = chr & 0xf;
+		char h1 = chr >> 4;
+		res += h1 < 10? (h1 | '0'): (h1 + ('a' - 10));
+		res += h0 < 10? (h0 | '0'): (h0 + ('a' - 10));
+	}
+	return res + '"';
 }
 
 #endif
